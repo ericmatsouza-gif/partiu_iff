@@ -823,10 +823,9 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📞 Contato & Suporte")
-    st.markdown("📧 **E-mail:** [ericmatsouza@gmail.com](mailto:ericmatsouza@gmail.com)")
-    st.markdown("💬 **WhatsApp:** [(21) 97048-1891](https://wa.me/5521970481891)")
-    st.info("💡 **Dica do Prof:** O número do WhatsApp também funciona como **Chave PIX**! "
-            "Se o gerador te economizou horas, o café virtual é bem-vindo! ☕😉")
+    st.markdown("📧 **E-mail:** [eric@educacao.casimirodeabreu.rj.gov.br](mailto:eric@educacao.casimirodeabreu.rj.gov.br)")
+   
+    st.info("💡 **Dica do Prof:** Se houver, dúvidas, mande um e-mail para mim ou tire na próxima aula")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
