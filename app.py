@@ -802,10 +802,8 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📞 Contato & Suporte")
-    st.markdown("📧 **E-mail:** [ericmatsouza@gmail.com](mailto:ericmatsouza@gmail.com)")
-    st.markdown("💬 **WhatsApp:** [(21) 97048-1891](https://wa.me/5521970481891)")
-    st.info("💡 **Dica do Prof:** O número do WhatsApp também funciona como **Chave PIX**! "
-            "Se o gerador te economizou horas, o café virtual é bem-vindo! ☕😉")
+    st.markdown("📧 **E-mail:** [eric@educacao.casimirodeabreu.rj.gov.br](mailto:eric@educacao.casimirodeabreu.rj.gov.br)")
+    st.info("💡 **Dica do Prof:** Caso não conseguiu compreender, me mande um e-mail que eu tenho ajudar da melhor maneira possível.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -901,7 +899,7 @@ with aba_prova:
                     except Exception as e:
                         st.error(f"❌ {e}")
         with col_b:
-            if st.button("🖨️ PDF Professor (com gabarito)", key="btn_pdf_qp_prof"):
+            if st.button("🖨️ PDF (com gabarito)", key="btn_pdf_qp_prof"):
                 with st.spinner("Gerando PDF..."):
                     try:
                         pdf = compilar_pdf_questoes(st.session_state.questoes_md,
