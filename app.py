@@ -456,6 +456,20 @@ def tokenizar_linha(texto: str) -> list[dict]:
     return tokens
 
 
+def _sanitizar_fallback(texto: str, fonte: str) -> str:
+    """Substitui caracteres Unicode não suportados pela fonte helvetica (fallback)
+    por equivalentes ASCII seguros. Usado em qualquer texto enviado ao PDF."""
+    texto = (texto
+             .replace("—", "-").replace("–", "-")
+             .replace("•", "-")
+             .replace("’", "'").replace("‘", "'")
+             .replace("“", '"').replace("”", '"')
+             .replace("…", "..."))
+    if fonte.lower() == "helvetica":
+        return texto.encode("latin-1", "replace").decode("latin-1")
+    return texto
+
+
 class TextRenderer:
     def __init__(self, pdf: FPDF, font_name: str = "DejaVu", base_size: float = 10):
         self.pdf = pdf; self.font_name = font_name; self.base_size = base_size; self.lh = 6.5
@@ -465,10 +479,7 @@ class TextRenderer:
         except Exception: self.pdf.set_font("helvetica", style, self.base_size)
 
     def _encode(self, t: str) -> str:
-        t = t.replace("—", "-").replace("–", "-")
-        if self.pdf.font_family.lower() == "helvetica":
-            return t.encode("latin-1", "replace").decode("latin-1")
-        return t
+        return _sanitizar_fallback(t, self.pdf.font_family)
 
     def write_span(self, text: str):
         partes = re.split(r'(\*\*|\*)', text); bold = False; italic = False
@@ -494,7 +505,10 @@ def _renderizar_tokens(pdf, renderer, texto):
 
 class PDFBase(FPDF):
     def __init__(self, titulo_cabecalho: str, subtitulo_cabecalho: str):
-        super().__init__(); self._titulo_cab = titulo_cabecalho; self._subtitulo_cab = subtitulo_cabecalho
+        super().__init__()
+        fonte_disponivel = "DejaVu" if FONT_DIR else "helvetica"
+        self._titulo_cab = _sanitizar_fallback(titulo_cabecalho, fonte_disponivel)
+        self._subtitulo_cab = _sanitizar_fallback(subtitulo_cabecalho, fonte_disponivel)
         if FONT_DIR:
             self.add_font("DejaVu", style="", fname=os.path.join(FONT_DIR, "DejaVuSans.ttf"))
             self.add_font("DejaVu", style="B", fname=os.path.join(FONT_DIR, "DejaVuSans-Bold.ttf"))
@@ -513,7 +527,8 @@ class PDFBase(FPDF):
     def footer(self):
         self.set_y(-15); fonte = "DejaVu" if FONT_DIR else "helvetica"
         self.set_font(fonte, "", 8); self.set_text_color(130, 130, 130)
-        self.cell(0, 10, f"Página {self.page_no()}/{{nb}}", align="R")
+        texto_rodape = _sanitizar_fallback(f"Página {self.page_no()}/{{nb}}", fonte)
+        self.cell(0, 10, texto_rodape, align="R")
 
 
 def _compilar_pdf_generico(texto_md: str, titulo_cab: str, subtitulo_cab: str,
@@ -539,17 +554,19 @@ def _compilar_pdf_generico(texto_md: str, titulo_cab: str, subtitulo_cab: str,
                 pdf.ln(4)
             pdf.set_fill_color(41, 128, 185); set_fonte(bold=True, size=11)
             pdf.set_text_color(255, 255, 255)
-            pdf.cell(W, 8, f"  {s[2:]}", fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(W, 8, _sanitizar_fallback(f"  {s[2:]}", pdf.font_family),
+                     fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_text_color(44, 62, 80); pdf.ln(3); continue
         if s.startswith("## "):
             pdf.ln(3); set_fonte(bold=True, size=10.5); pdf.set_text_color(26, 42, 58)
-            pdf.cell(W, 7, s[3:], new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(W, 7, _sanitizar_fallback(s[3:], pdf.font_family), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_draw_color(41, 128, 185); pdf.line(15, pdf.get_y(), 195, pdf.get_y())
             pdf.ln(2); continue
         if re.match(r'^#{3,4}\s+', s):
             conteudo = re.sub(r'^#{3,4}\s+', '', s); pdf.ln(2)
             set_fonte(bold=True, size=10); pdf.set_text_color(44, 62, 80)
-            pdf.cell(W, 6, conteudo, new_x=XPos.LMARGIN, new_y=YPos.NEXT); pdf.ln(1); continue
+            pdf.cell(W, 6, _sanitizar_fallback(conteudo, pdf.font_family),
+                     new_x=XPos.LMARGIN, new_y=YPos.NEXT); pdf.ln(1); continue
         if re.match(r'^-{3,}$', s):
             pdf.ln(2); pdf.set_draw_color(200, 200, 200)
             pdf.line(15, pdf.get_y(), 195, pdf.get_y()); pdf.ln(2); continue
@@ -558,7 +575,8 @@ def _compilar_pdf_generico(texto_md: str, titulo_cab: str, subtitulo_cab: str,
             bullet = match_list.group(2); indent = len(match_list.group(1)) * 2 + 5
             conteudo = linha[len(match_list.group(0)):]
             pdf.set_x(pdf.l_margin + indent - 3); set_fonte(bold=False, size=10)
-            pdf.set_text_color(44, 62, 80); pdf.write(renderer.lh, bullet + " ")
+            pdf.set_text_color(44, 62, 80)
+            pdf.write(renderer.lh, _sanitizar_fallback(bullet + " ", pdf.font_family))
             _renderizar_tokens(pdf, renderer, conteudo); pdf.ln(renderer.lh + 1); continue
         pdf.set_x(pdf.l_margin); pdf.set_text_color(44, 62, 80); set_fonte(bold=False, size=10)
         _renderizar_tokens(pdf, renderer, s); pdf.ln(renderer.lh + 1)
@@ -823,9 +841,10 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📞 Contato & Suporte")
-    st.markdown("📧 **E-mail:** [eric@educacao.casimirodeabreu.rj.gov.br](mailto:eric@educacao.casimirodeabreu.rj.gov.br)")
-   
-    st.info("💡 **Dica do Prof:** Se houver, dúvidas, mande um e-mail para mim ou tire na próxima aula")
+    st.markdown("📧 **E-mail:** [ericmatsouza@gmail.com](mailto:ericmatsouza@gmail.com)")
+    st.markdown("💬 **WhatsApp:** [(21) 97048-1891](https://wa.me/5521970481891)")
+    st.info("💡 **Dica do Prof:** O número do WhatsApp também funciona como **Chave PIX**! "
+            "Se o gerador te economizou horas, o café virtual é bem-vindo! ☕😉")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
