@@ -637,7 +637,7 @@ ORIENTAÇÃO PEDAGÓGICA:
 
 def gerar_questoes_prova(client, prova, disciplina, conteudo, quantidade, tipo_questao):
     mapa = {
-        "Múltipla escolha (A–D)": "múltipla escolha com 4 alternativas (A, B, C, D)",
+        "Múltipla escolha (A–E)": "múltipla escolha com 4 alternativas (A, B, C, D, E)",
         "Dissertativa": "dissertativa com resolução passo a passo",
         "Misto (múltipla + dissertativa)": "misto: metade múltipla escolha e metade dissertativa",
     }
@@ -678,14 +678,14 @@ def gerar_simulado(client, tipo, distribuicao, conteudos_escolhidos):
     prompt = f"""
 Você é professor especialista em simulados para ingresso em escolas técnicas (IFF, IFRJ, CEFET, SESI-SENAI).
 
-Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D) para 9º ano — estilo: **{tipo}**.
+Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D, E) para 9º ano — estilo: **{tipo}**.
 
 DISTRIBUIÇÃO:
 {chr(10).join(secoes)}
 
 - Questões numeradas de 1 a {total} em sequência contínua.
 - Antes de cada questão: **[DISCIPLINA]** e [Conteúdo: ...].
-- Alternativas A), B), C), D) em linhas separadas, uma correta.
+- Alternativas A), B), C), D), E) em linhas separadas, uma correta.
 - Níveis: ~40% fáceis (F), 40% médias (M), 20% difíceis (D).
 - Use LaTeX para matemática.
 - Ao final das questões, inclua folha de respostas vazia.
