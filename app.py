@@ -626,10 +626,14 @@ REGRAS DE FORMATAÇÃO:
 """
 
 ORIENTACAO = """
-ORIENTAÇÃO PEDAGÓGICA:
-- Questões no estilo das provas de ingresso em escolas técnicas federais.
+FOCO OBRIGATÓRIO — PROVAS DE INGRESSO EM ESCOLAS TÉCNICAS:
+- Todo o material deve ter foco total em como o conteúdo É COBRADO nas provas de ingresso
+  (IFF, IFRJ, CEFET-RJ, SESI-SENAI). Nada de teoria solta desconectada da prova.
 - Linguagem acessível para aluno do 9º ano da rede pública.
-- Contextualize em situações reais do cotidiano (trabalho, tecnologia, saúde, ambiente).
+- Contextualize em situações reais do cotidiano (trabalho, tecnologia, saúde, ambiente) —
+  do jeito que essas provas costumam contextualizar as questões.
+- Sempre que possível, aponte o PADRÃO de cobrança: o que a banca costuma pedir sobre esse
+  conteúdo, pegadinhas recorrentes, e o que o aluno precisa dominar para não errar.
 """
 
 
@@ -637,20 +641,24 @@ ORIENTAÇÃO PEDAGÓGICA:
 
 def gerar_questoes_prova(client, prova, disciplina, conteudo, quantidade, tipo_questao):
     mapa = {
-        "Múltipla escolha (A–E)": "múltipla escolha com 4 alternativas (A, B, C, D, E)",
+        "Múltipla escolha (A–D)": "múltipla escolha com 4 alternativas (A, B, C, D)",
         "Dissertativa": "dissertativa com resolução passo a passo",
         "Misto (múltipla + dissertativa)": "misto: metade múltipla escolha e metade dissertativa",
     }
     tipo_str = mapa.get(tipo_questao, "múltipla escolha com 4 alternativas")
     prompt = f"""
-Você é professor especialista em elaborar questões para provas de ingresso em escolas técnicas ({prova}).
+Você é professor especialista em bancas de provas de ingresso em escolas técnicas ({prova}),
+com domínio profundo de como essa banca especificamente cobra cada conteúdo.
 
-Elabore {quantidade} questões de {disciplina} para alunos do 9º ano, sobre: **{conteudo}**.
+Elabore {quantidade} questões de {disciplina} para alunos do 9º ano, sobre: **{conteudo}**,
+REPRODUZINDO fielmente o estilo, o nível de exigência e a forma de contextualizar da prova {prova}.
+
 Tipo: {tipo_str}
 
 - Estilo fiel ao modelo {prova}. Nível: ~40% fáceis, 40% médias, 20% difíceis.
 - Indique: [Conteúdo: ...] e nível (Fácil/Médio/Difícil) em cada questão.
-- Múltipla escolha: alternativas A), B), C), D) em linhas separadas, uma correta.
+- Múltipla escolha: alternativas A), B), C), D) em linhas separadas, uma correta — incluindo
+  ao menos 1 alternativa "pegadinha" plausível por questão (erro comum do aluno).
 - Use LaTeX para toda matemática.
 
 # QUESTÕES — {prova}
@@ -660,7 +668,7 @@ Tipo: {tipo_str}
 # GABARITO E RESOLUÇÕES
 **Questão N.** — Resposta: [letra/resposta]
 - **Resolução:** [passo a passo]
-- **Dica:** [orientação em linguagem acessível]
+- **Como cai na prova {prova}:** [o que a banca costuma exigir nesse tipo de questão e erro comum a evitar]
 
 {REGRAS_LATEX}
 {ORIENTACAO}
@@ -678,14 +686,14 @@ def gerar_simulado(client, tipo, distribuicao, conteudos_escolhidos):
     prompt = f"""
 Você é professor especialista em simulados para ingresso em escolas técnicas (IFF, IFRJ, CEFET, SESI-SENAI).
 
-Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D, E) para 9º ano — estilo: **{tipo}**.
+Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D) para 9º ano — estilo: **{tipo}**.
 
 DISTRIBUIÇÃO:
 {chr(10).join(secoes)}
 
 - Questões numeradas de 1 a {total} em sequência contínua.
 - Antes de cada questão: **[DISCIPLINA]** e [Conteúdo: ...].
-- Alternativas A), B), C), D), E) em linhas separadas, uma correta.
+- Alternativas A), B), C), D) em linhas separadas, uma correta.
 - Níveis: ~40% fáceis (F), 40% médias (M), 20% difíceis (D).
 - Use LaTeX para matemática.
 - Ao final das questões, inclua folha de respostas vazia.
@@ -703,7 +711,8 @@ DISTRIBUIÇÃO:
 [1-X | 2-X | ... até {total}]
 
 ## RESOLUÇÕES SELECIONADAS
-[Resolva detalhadamente pelo menos 6 questões das mais difíceis]
+[Resolva detalhadamente pelo menos 6 questões das mais difíceis, apontando o "pulo do gato"
+que a banca costuma cobrar em cada uma]
 
 {REGRAS_LATEX}
 {ORIENTACAO}
@@ -713,30 +722,35 @@ DISTRIBUIÇÃO:
 
 def gerar_aula_aluno(client, disciplina, assunto, duvida):
     prompt = f"""
-Você é um professor tutor paciente, especializado em alunos do 9º ano de escolas públicas brasileiras.
+Você é um professor tutor especializado em PREPARAR ALUNOS DO 9º ANO PARA AS PROVAS DE INGRESSO
+em escolas técnicas (IFF, IFRJ, CEFET-RJ, SESI-SENAI). Seu foco é 100% voltado para a prova:
+tudo que você ensina deve deixar claro POR QUE isso cai na prova e COMO cai.
 
 Disciplina: {disciplina} | Assunto: **{assunto}**
-Dúvida do aluno: "{duvida if duvida.strip() else 'Explicar o assunto desde o início'}"
+Dúvida do aluno: "{duvida if duvida.strip() else 'Explicar o assunto desde o início, com foco na prova'}"
 
 Elabore uma AULA EXPLICATIVA COMPLETA, falando diretamente com o aluno:
 - Linguagem acessível e próxima do cotidiano.
-- Exemplos concretos (cidade, trabalho, tecnologia, esporte).
-- Passo a passo detalhado.
-- Analogias e comparações.
+- Logo no início, diga em quais dessas provas (IFF, IFRJ, CEFET-RJ, SESI-SENAI) esse assunto
+  mais aparece e com que frequência/importância.
+- Exemplos concretos (cidade, trabalho, tecnologia, esporte), sempre no ESTILO das questões
+  dessas provas.
+- Passo a passo detalhado, sem pular etapas.
+- Analogias e comparações para fixar o conceito.
 - Resumo ao final (mapa mental em texto ou tabela).
-- 3 a 5 exercícios resolvidos com comentários.
-- Dica de como esse conteúdo cai nas provas IFF, IFRJ, CEFET e SESI-SENAI.
+- 3 a 5 exercícios resolvidos com comentários, no MESMO estilo/nível das provas técnicas.
+- Uma seção final com os erros mais comuns que os alunos cometem nesse assunto nas provas,
+  e como evitá-los.
 
 # 📚 AULA: {assunto} — {disciplina}
-## Para o 9º Ano
+## Para o 9º Ano | Foco: Provas de Ingresso em Escolas Técnicas
 
-### 🎯 O que você vai aprender
-### 🌍 Por que isso importa?
+### 🎯 Onde isso cai na prova
 ### 📖 Explicação Principal
-### 💡 Exemplos Resolvidos
+### 💡 Exemplos Resolvidos (estilo prova)
 ### 🗺️ Resumo / Mapa de Ideias
 ### ✏️ Praticando: Exercícios com Gabarito
-### 🔑 Dica de Prova
+### ⚠️ Erros Mais Comuns na Prova (e como evitar)
 
 {REGRAS_LATEX}
 """
@@ -751,20 +765,27 @@ def gerar_exercicios(client, disciplina, ano, assunto, nivel, quantidade, tipos)
     }
     tipos_str = ", ".join(mapa_tipos[t] for t in tipos if t in mapa_tipos) or "variados"
     prompt = f"""
-Você é professor especialista em elaborar listas de exercícios para o 9º ano.
+Você é professor especialista em elaborar listas de exercícios PREPARATÓRIOS PARA PROVAS DE
+INGRESSO em escolas técnicas (IFF, IFRJ, CEFET-RJ, SESI-SENAI), para alunos do 9º ano.
 
 Disciplina: {disciplina} | Ano: {ano} | Assunto: {assunto}
 Nível: {nivel} | Quantidade: {quantidade} | Tipos: {tipos_str}
 
+- Os exercícios devem seguir o PADRÃO e o NÍVEL de exigência dessas provas técnicas —
+  nada de exercício puramente acadêmico desconectado do formato de prova.
+- Contextualize em situações do cotidiano, como essas provas costumam fazer.
+- Inclua ao menos uma "pegadinha" típica de prova entre os exercícios.
+
 # LISTA DE EXERCÍCIOS
-## {disciplina} | {ano} | {assunto}
+## {disciplina} | {ano} | {assunto} | Foco: Provas Técnicas
 [Exercícios 1 a {quantidade}, marcador: **Exercício N.**]
 
 # GABARITO COMENTADO
 **Exercício N.**
 - **Resposta:** [resposta]
 - **Resolução:** [passo a passo]
-- **Comentário:** [dica pedagógica]
+- **Como cai na prova:** [em qual prova(s) esse tipo de questão é mais comum e o que o aluno
+  precisa dominar para acertar]
 
 {REGRAS_LATEX}
 """
@@ -802,8 +823,10 @@ with st.sidebar:
         </div>""", unsafe_allow_html=True)
     st.divider()
     st.markdown("### 📞 Contato & Suporte")
-    st.markdown("📧 **E-mail:** [eric@educacao.casimirodeabreu.rj.gov.br](mailto:eric@educacao.casimirodeabreu.rj.gov.br)")
-    st.info("💡 **Dica do Prof:** Caso não conseguiu compreender, me mande um e-mail que eu tenho ajudar da melhor maneira possível.")
+    st.markdown("📧 **E-mail:** [ericmatsouza@gmail.com](mailto:ericmatsouza@gmail.com)")
+    st.markdown("💬 **WhatsApp:** [(21) 97048-1891](https://wa.me/5521970481891)")
+    st.info("💡 **Dica do Prof:** O número do WhatsApp também funciona como **Chave PIX**! "
+            "Se o gerador te economizou horas, o café virtual é bem-vindo! ☕😉")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -899,7 +922,7 @@ with aba_prova:
                     except Exception as e:
                         st.error(f"❌ {e}")
         with col_b:
-            if st.button("🖨️ PDF (com gabarito)", key="btn_pdf_qp_prof"):
+            if st.button("🖨️ PDF Professor (com gabarito)", key="btn_pdf_qp_prof"):
                 with st.spinner("Gerando PDF..."):
                     try:
                         pdf = compilar_pdf_questoes(st.session_state.questoes_md,
