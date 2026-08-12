@@ -1,6 +1,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# GERADOR EDUCACIONAL PHC — v3 (Prep. Técnicas + Simulados + Tirar Dúvidas)
-# Abas: Plano de Aula | Exercícios | Questões por Prova | Simulados | Tirar Dúvidas
+# PREPARATÓRIO ESCOLAS TÉCNICAS — v2
+# Abas: Questões por Prova | Simulados | Tirar Dúvidas | Lista de Exercícios
+# Modelo: gemini-3.5-flash-lite
 # ══════════════════════════════════════════════════════════════════════════════
 import os, re, io, random, requests, tempfile
 import streamlit as st
@@ -8,6 +9,8 @@ from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 from fpdf import FPDF, XPos, YPos
+
+MODELO = "gemini-3.5-flash-lite"
 
 # ── CONFIGURAÇÃO DA PÁGINA ────────────────────────────────────────────────────
 st.set_page_config(
@@ -30,7 +33,6 @@ st.markdown("""
     font-size: 16px;
 }
 .stButton>button:hover { background-color: #1f6391; color: white; }
-
 .badge-prova {
     display: inline-block;
     background: #2980b9;
@@ -318,16 +320,6 @@ PROVAS = {
 }
 
 CONTEUDOS_SIMULADO = {
-    "Matemática": [
-        "Equações e funções",
-        "Geometria plana e espacial",
-        "Porcentagem e proporcionalidade",
-        "Estatística e probabilidade",
-        "Álgebra e expressões",
-        "Grandezas e medidas",
-        "Razão e proporção",
-        "Números e operações",
-    ],
     "Português": [
         "Interpretação de texto",
         "Gramática e sintaxe",
@@ -337,6 +329,16 @@ CONTEUDOS_SIMULADO = {
         "Coesão e coerência",
         "Concordância e regência",
         "Tipologia textual",
+    ],
+    "Matemática": [
+        "Equações e funções",
+        "Geometria plana e espacial",
+        "Porcentagem e proporcionalidade",
+        "Estatística e probabilidade",
+        "Álgebra e expressões",
+        "Grandezas e medidas",
+        "Razão e proporção",
+        "Números e operações",
     ],
     "Ciências": [
         "Biologia celular e genética",
@@ -363,16 +365,16 @@ CONTEUDOS_SIMULADO = {
 }
 
 TIPOS_SIMULADO = {
-    "IFF — Modelo Oficial": {"port": 10, "mat": 10, "cie": 5, "geo": 5, "hist": 5},
-    "IFRJ — Modelo Oficial": {"port": 10, "mat": 10, "cie": 5, "geo": 5, "hist": 5},
-    "CEFET — Modelo Completo": {"port": 10, "mat": 10, "cie": 5, "geo": 5, "hist": 5},
-    "SESI-SENAI — Modelo Prático": {"port": 10, "mat": 10, "cie": 5, "geo": 3, "hist": 2},
-    "Simulado Geral (misturado)": {"port": 10, "mat": 10, "cie": 5, "geo": 5, "hist": 5},
+    "IFF — Modelo Oficial":           {"Português": 10, "Matemática": 10, "Ciências": 5, "Geografia": 5, "História": 5},
+    "IFRJ — Modelo Oficial":          {"Português": 10, "Matemática": 10, "Ciências": 5, "Geografia": 5, "História": 5},
+    "CEFET — Modelo Completo":        {"Português": 10, "Matemática": 10, "Ciências": 5, "Geografia": 5, "História": 5},
+    "SESI-SENAI — Modelo Prático":    {"Português": 10, "Matemática": 10, "Ciências": 5, "Geografia": 3, "História": 2},
+    "Simulado Geral (misturado)":     {"Português": 10, "Matemática": 10, "Ciências": 5, "Geografia": 5, "História": 5},
 }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PDF: fontes e helpers (idênticos ao original)
+# PDF — helpers (inalterados do original)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _localizar_fontes_dejavu() -> str:
@@ -564,30 +566,28 @@ def _compilar_pdf_generico(texto_md: str, titulo_cab: str, subtitulo_cab: str,
     return bytes(pdf.output())
 
 
-# ── Wrappers de compilação PDF ────────────────────────────────────────────────
-def compilar_pdf(texto_md, disciplina, ano_escolar, assunto):
-    return _compilar_pdf_generico(texto_md, "PLANO DE AULA E MATERIAL DIDÁTICO",
-                                   f"{disciplina.upper()} | {ano_escolar} | {assunto}",
-                                   marcador_nova_pagina="GABARITO COMENTADO")
+def compilar_pdf_questoes(texto_md, prova, disciplina, conteudo):
+    return _compilar_pdf_generico(texto_md, f"QUESTÕES — MODELO {prova.upper()}",
+                                   f"{disciplina.upper()} | {conteudo}", "GABARITO")
 
-def compilar_pdf_exercicios(texto_md, disciplina, ano_escolar, assunto):
-    separador = re.split(r'(?mi)^#{1,2}\s+.*GABARITO.*$', texto_md)
-    return _compilar_pdf_generico(separador[0].strip(), "LISTA DE EXERCÍCIOS",
-                                   f"{disciplina.upper()} | {ano_escolar} | {assunto}", "")
+def compilar_pdf_simulado(texto_md, tipo):
+    return _compilar_pdf_generico(texto_md, "SIMULADO — PREPARATÓRIO ESCOLAS TÉCNICAS",
+                                   tipo.upper(), "GABARITO")
 
-def compilar_pdf_gabarito(texto_md, disciplina, ano_escolar, assunto):
+def compilar_pdf_aula(texto_md, disciplina, assunto):
+    return _compilar_pdf_generico(texto_md, "AULA PERSONALIZADA — 9º ANO",
+                                   f"{disciplina.upper()} | {assunto}", "")
+
+def compilar_pdf_exercicios(texto_md, disciplina, assunto):
+    sep = re.split(r'(?mi)^#{1,2}\s+.*GABARITO.*$', texto_md)
+    return _compilar_pdf_generico(sep[0].strip(), "LISTA DE EXERCÍCIOS",
+                                   f"{disciplina.upper()} | {assunto}", "")
+
+def compilar_pdf_gabarito(texto_md, disciplina, assunto):
     match = re.search(r'(?mi)^#{1,2}\s+.*GABARITO.*$', texto_md)
     conteudo = texto_md[match.start():].strip() if match else texto_md
     return _compilar_pdf_generico(conteudo, "GABARITO COMENTADO",
-                                   f"{disciplina.upper()} | {ano_escolar} | {assunto}", "")
-
-def compilar_pdf_questoes_prova(texto_md, prova, disciplina, assunto):
-    return _compilar_pdf_generico(texto_md, f"QUESTÕES — MODELO {prova.upper()}",
-                                   f"{disciplina.upper()} | {assunto}", "GABARITO")
-
-def compilar_pdf_simulado(texto_md, tipo_simulado):
-    return _compilar_pdf_generico(texto_md, "SIMULADO — PREPARATÓRIO ESCOLAS TÉCNICAS",
-                                   tipo_simulado.upper(), "GABARITO")
+                                   f"{disciplina.upper()} | {assunto}", "")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -595,299 +595,155 @@ def compilar_pdf_simulado(texto_md, tipo_simulado):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @st.cache_resource
-def get_gemini_client(api_key: str) -> genai.Client:
+def get_client(api_key: str) -> genai.Client:
     return genai.Client(api_key=api_key)
 
 
-def _tratar_erro_api(e: Exception):
-    erro_str = str(e)
-    if "429" in erro_str or "RESOURCE_EXHAUSTED" in erro_str:
-        st.warning("⏳ **Cota atingida!** Aguarde ~15 segundos e tente novamente.")
-    elif "503" in erro_str or "unavailable" in erro_str.lower():
-        st.error("⚠️ Servidor Gemini temporariamente indisponível. Tente em instantes.")
+def _tratar_erro(e: Exception):
+    s = str(e)
+    if "429" in s or "RESOURCE_EXHAUSTED" in s:
+        st.warning("⏳ Cota atingida! Aguarde ~15 segundos e tente novamente.")
+    elif "503" in s or "unavailable" in s.lower():
+        st.error("⚠️ Servidor temporariamente indisponível. Tente em instantes.")
     else:
         st.error(f"❌ Erro: {e}")
 
 
-REGRAS_FORMATACAO = """
-REGRAS RIGOROSAS DE FORMATAÇÃO:
+def _gerar(client, prompt: str, tokens: int = 8192, temp: float = 0.7) -> str:
+    cfg = types.GenerateContentConfig(max_output_tokens=tokens, temperature=temp)
+    resp = client.models.generate_content(model=MODELO, contents=prompt, config=cfg)
+    return resp.text
+
+
+REGRAS_LATEX = """
+REGRAS DE FORMATAÇÃO:
 - NUNCA use blocos de código (```) para texto ou matemática.
-- Use LaTeX ($...$) para QUALQUER expressão, variável ou fórmula.
+- Use LaTeX ($...$) para toda expressão ou fórmula matemática.
 - Expressões em destaque: $$expressão$$
-- Notação padrão: \\frac, \\sqrt, x^{2}, \\cdot, \\pm, \\leq, \\geq
-- NUNCA coloque texto simples entre $ (escreva "3 reais" como texto, não $3$).
-- NÃO use $ para moeda (escreva "R$" com espaço, ou "reais").
-- Negrito para termos chave: **termo**.
+- Notação: \\frac, \\sqrt, x^{2}, \\cdot, \\pm, \\leq, \\geq
+- NÃO use $ para moeda — escreva "R$" com espaço, ou "reais".
+- Negrito para termos-chave: **termo**.
 """
 
-ORIENTACAO_PROVA = """
+ORIENTACAO = """
 ORIENTAÇÃO PEDAGÓGICA:
 - Questões no estilo das provas de ingresso em escolas técnicas federais.
 - Linguagem acessível para aluno do 9º ano da rede pública.
 - Contextualize em situações reais do cotidiano (trabalho, tecnologia, saúde, ambiente).
-- Rigor técnico sem excesso de formalismo acadêmico.
-- NUNCA mencione explicitamente "pedagogia histórico-crítica", "escola pública" ou "autogoverno".
 """
 
 
-# ── GERADOR: Questões por Prova ───────────────────────────────────────────────
-def gerar_questoes_prova(client, prova: str, disciplina: str, conteudo: str,
-                          quantidade: int, tipo_questao: str) -> str:
-    mapa_tipo = {
+# ── Geradores ─────────────────────────────────────────────────────────────────
+
+def gerar_questoes_prova(client, prova, disciplina, conteudo, quantidade, tipo_questao):
+    mapa = {
         "Múltipla escolha (A–D)": "múltipla escolha com 4 alternativas (A, B, C, D)",
         "Dissertativa": "dissertativa com resolução passo a passo",
-        "Misto (múltipla + dissertativa)": "misto: metade múltipla escolha (A-D) e metade dissertativa",
+        "Misto (múltipla + dissertativa)": "misto: metade múltipla escolha e metade dissertativa",
     }
-    tipo_str = mapa_tipo.get(tipo_questao, "múltipla escolha com 4 alternativas")
-
+    tipo_str = mapa.get(tipo_questao, "múltipla escolha com 4 alternativas")
     prompt = f"""
-Você é um professor especialista em elaborar questões para provas de ingresso em escolas técnicas federais e estaduais brasileiras ({prova}).
+Você é professor especialista em elaborar questões para provas de ingresso em escolas técnicas ({prova}).
 
-Elabore {quantidade} questões de {disciplina} para alunos do 9º ano do Ensino Fundamental, sobre o conteúdo: **{conteudo}**.
+Elabore {quantidade} questões de {disciplina} para alunos do 9º ano, sobre: **{conteudo}**.
+Tipo: {tipo_str}
 
-TIPO DE QUESTÃO: {tipo_str}
-
-CARACTERÍSTICAS OBRIGATÓRIAS:
-- Estilo fiel ao modelo da prova {prova} (nível e linguagem).
-- Questões variadas em complexidade: aproximadamente 40% fáceis, 40% médias, 20% difíceis.
-- Cada questão deve indicar o conteúdo relacionado: [Conteúdo: ...]
-- Para múltipla escolha: alternativas A), B), C), D) em linhas separadas. Apenas uma correta.
-- Para dissertativa: enunciado claro com dados e o que se pede.
-- Contextualize em situações reais do cotidiano do aluno de escola pública.
-- Use LaTeX para toda matemática: $expressão$, $$equação em bloco$$
-
-Siga ESTRITAMENTE esta estrutura:
+- Estilo fiel ao modelo {prova}. Nível: ~40% fáceis, 40% médias, 20% difíceis.
+- Indique: [Conteúdo: ...] e nível (Fácil/Médio/Difícil) em cada questão.
+- Múltipla escolha: alternativas A), B), C), D) em linhas separadas, uma correta.
+- Use LaTeX para toda matemática.
 
 # QUESTÕES — {prova}
 ## {disciplina} | 9º Ano | {conteudo}
-
-[Enumere de 1 a {quantidade}. Use "**Questão N.**" como marcador.]
-[Indique o nível: (Fácil), (Médio) ou (Difícil) após o número.]
-[Inclua [Conteúdo: ...] antes do enunciado.]
+[Questões 1 a {quantidade}, marcador: **Questão N.**]
 
 # GABARITO E RESOLUÇÕES
-[Para cada questão:]
-**Questão N.** — Resposta: [letra ou resposta objetiva]
-- **Resolução:** [passo a passo com LaTeX quando necessário]
-- **Dica para o aluno:** [orientação pedagógica em linguagem acessível]
+**Questão N.** — Resposta: [letra/resposta]
+- **Resolução:** [passo a passo]
+- **Dica:** [orientação em linguagem acessível]
 
-{REGRAS_FORMATACAO}
-{ORIENTACAO_PROVA}
+{REGRAS_LATEX}
+{ORIENTACAO}
 """
-    config = types.GenerateContentConfig(max_output_tokens=8192, temperature=0.7)
-    resp = client.models.generate_content(model="gemini-2.5-flash-lite-preview-06-17",
-                                           contents=prompt, config=config)
-    return resp.text
+    return _gerar(client, prompt)
 
 
-# ── GERADOR: Simulado ─────────────────────────────────────────────────────────
-def gerar_simulado(client, tipo_simulado: str, distribuicao: dict,
-                   conteudos_escolhidos: dict) -> str:
+def gerar_simulado(client, tipo, distribuicao, conteudos_escolhidos):
     secoes = []
-    for materia, qtd in distribuicao.items():
-        conts = conteudos_escolhidos.get(materia, [])
+    for mat, qtd in distribuicao.items():
+        conts = conteudos_escolhidos.get(mat, [])
         cont_str = ", ".join(conts) if conts else "conteúdos variados do 9º ano"
-        secoes.append(f"- {materia}: {qtd} questões | Conteúdos: {cont_str}")
-    mapa_secoes = "\n".join(secoes)
+        secoes.append(f"- {mat}: {qtd} questões | Conteúdos: {cont_str}")
     total = sum(distribuicao.values())
-
     prompt = f"""
-Você é um professor especialista em elaborar simulados para ingresso em escolas técnicas federais e estaduais (IFF, IFRJ, CEFET, SESI-SENAI).
+Você é professor especialista em simulados para ingresso em escolas técnicas (IFF, IFRJ, CEFET, SESI-SENAI).
 
-Elabore um simulado completo com {total} questões de múltipla escolha (A, B, C, D) para alunos do 9º ano, no estilo: **{tipo_simulado}**.
+Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D) para 9º ano — estilo: **{tipo}**.
 
-DISTRIBUIÇÃO OBRIGATÓRIA:
-{mapa_secoes}
+DISTRIBUIÇÃO:
+{chr(10).join(secoes)}
 
-REGRAS:
-- Questões numeradas de 1 a {total}, em sequência contínua.
-- Antes de cada questão: indique a disciplina com **[DISCIPLINA]** e o [Conteúdo: ...].
-- Alternativas A), B), C), D) em linhas separadas. Apenas uma correta.
-- Misture os níveis: ~40% fáceis, 40% médias, 20% difíceis. Indique o nível: (F), (M) ou (D).
-- Contextualize em situações do cotidiano dos alunos.
-- Use LaTeX para toda matemática.
-- Ao final do bloco de questões, adicione uma folha de respostas vazia para o aluno marcar.
+- Questões numeradas de 1 a {total} em sequência contínua.
+- Antes de cada questão: **[DISCIPLINA]** e [Conteúdo: ...].
+- Alternativas A), B), C), D) em linhas separadas, uma correta.
+- Níveis: ~40% fáceis (F), 40% médias (M), 20% difíceis (D).
+- Use LaTeX para matemática.
+- Ao final das questões, inclua folha de respostas vazia.
 
-Siga esta estrutura:
+# SIMULADO — {tipo}
+## Preparatório Escolas Técnicas | 9º Ano | {total} Questões
 
-# SIMULADO — {tipo_simulado}
-## Preparatório para Escolas Técnicas | 9º Ano do Ensino Fundamental
-### {total} Questões de Múltipla Escolha
-
-[Questões numeradas 1 a {total}]
+[Questões 1 a {total}]
 
 ---
 ## FOLHA DE RESPOSTAS
-[Tabela simples: Questão | Resposta do aluno | (duas colunas, {total} linhas)]
+[Tabela: Questão | Resposta — {total} linhas]
 
 # GABARITO OFICIAL
-[Lista: 1-X | 2-X | ... até {total}]
+[1-X | 2-X | ... até {total}]
 
 ## RESOLUÇÕES SELECIONADAS
-[Resolva detalhadamente pelo menos 6 questões das mais difíceis, uma de cada disciplina principal]
+[Resolva detalhadamente pelo menos 6 questões das mais difíceis]
 
-{REGRAS_FORMATACAO}
-{ORIENTACAO_PROVA}
+{REGRAS_LATEX}
+{ORIENTACAO}
 """
-    config = types.GenerateContentConfig(max_output_tokens=8192, temperature=0.75)
-    resp = client.models.generate_content(model="gemini-3.5-flash-lite",
-                                           contents=prompt, config=config)
-    return resp.text
+    return _gerar(client, prompt)
 
 
-# ── GERADOR: Tirar Dúvidas (aula para aluno) ─────────────────────────────────
-def gerar_aula_aluno(client, disciplina: str, assunto: str, duvida: str) -> str:
+def gerar_aula_aluno(client, disciplina, assunto, duvida):
     prompt = f"""
-Você é um professor tutor paciente e didático, especializado em ensinar alunos do 9º ano do Ensino Fundamental de escolas públicas brasileiras.
+Você é um professor tutor paciente, especializado em alunos do 9º ano de escolas públicas brasileiras.
 
-O aluno tem uma dúvida sobre {disciplina}, no assunto: **{assunto}**.
-Dúvida específica do aluno: "{duvida if duvida.strip() else 'Explicar o assunto do início'}"
+Disciplina: {disciplina} | Assunto: **{assunto}**
+Dúvida do aluno: "{duvida if duvida.strip() else 'Explicar o assunto desde o início'}"
 
-Elabore uma AULA EXPLICATIVA COMPLETA, como se estivesse falando diretamente com o aluno, com:
-
-1. **Linguagem acessível**, próxima do dia a dia do aluno — sem ser informal demais.
-2. **Exemplos concretos** da realidade do estudante (cidade, trabalho, tecnologia, esporte).
-3. **Passo a passo detalhado** — nada pode ser pulado.
-4. **Analogias e comparações** para facilitar a compreensão.
-5. **Resumo visual** ao final (tipo "mapa mental" em texto ou tabela comparativa).
-6. **3 a 5 exercícios resolvidos** com resolução comentada passo a passo.
-7. **Dica de estudo**: como memorizar ou aplicar o conteúdo na prova.
-
-ESTRUTURA OBRIGATÓRIA:
+Elabore uma AULA EXPLICATIVA COMPLETA, falando diretamente com o aluno:
+- Linguagem acessível e próxima do cotidiano.
+- Exemplos concretos (cidade, trabalho, tecnologia, esporte).
+- Passo a passo detalhado.
+- Analogias e comparações.
+- Resumo ao final (mapa mental em texto ou tabela).
+- 3 a 5 exercícios resolvidos com comentários.
+- Dica de como esse conteúdo cai nas provas IFF, IFRJ, CEFET e SESI-SENAI.
 
 # 📚 AULA: {assunto} — {disciplina}
-## Para o 9º ano | Linguagem do aluno
+## Para o 9º Ano
 
-### 🎯 O que você vai aprender nesta aula
-[bullet points com os objetivos]
-
-### 🌍 Por que isso importa? (Conexão com o mundo real)
-[contexto motivador]
-
+### 🎯 O que você vai aprender
+### 🌍 Por que isso importa?
 ### 📖 Explicação Principal
-[desenvolvimento claro e progressivo]
-
 ### 💡 Exemplos Resolvidos
-[3 a 5 exemplos com resolução passo a passo]
-
 ### 🗺️ Resumo / Mapa de Ideias
-[resumo visual em forma de lista, tabela ou esquema]
-
 ### ✏️ Praticando: Exercícios com Gabarito
-[3 a 5 exercícios com gabarito e dica]
-
 ### 🔑 Dica de Prova
-[como esse conteúdo cai nas provas IFF, IFRJ, CEFET e SESI-SENAI]
 
-{REGRAS_FORMATACAO}
+{REGRAS_LATEX}
 """
-    config = types.GenerateContentConfig(max_output_tokens=8192, temperature=0.65)
-    resp = client.models.generate_content(model="gemini-3.5-flash-lite",
-                                           contents=prompt, config=config)
-    return resp.text
+    return _gerar(client, prompt, temp=0.65)
 
 
-# ── GERADOR: Plano de Aula (original) ────────────────────────────────────────
-ORIENTACAO_PHC = """
-ORIENTAÇÃO PEDAGÓGICO-POLÍTICA OBRIGATÓRIA:
-1. O conhecimento deve ser tratado como saber sistematizado, produzido historicamente.
-2. Propriedade dos conceitos como ferramenta de LEITURA CRÍTICA DA REALIDADE.
-3. Rompa com a dualidade: entregue RIGOR TÉCNICO-CIENTÍFICO unido à CONSCIÊNCIA CRÍTICA.
-4. NUNCA deixe explícito: 'autogoverno', 'pedagogia histórico-crítica', 'escola pública'.
-"""
-
-def _construir_bloco_localizacao(client, localizacao: str) -> str:
-    if not localizacao or not localizacao.strip(): return ""
-    chave = localizacao.strip().lower()
-    if chave in st.session_state.contexto_local_cache:
-        return st.session_state.contexto_local_cache[chave]
-    prompt_ctx = f"""
-Produza um bloco de contextualização socioespacial CONCISO (máx. 250 palavras) sobre
-"{localizacao}" para subsidiar aulas sob a perspectiva da Pedagogia Histórico-Crítica.
-Inclua: acesso à internet, perfil econômico local, IDH aproximado, traço histórico/cultural,
-situação-problema concreta para exercícios.
-Retorne APENAS:
-CONTEXTO SOCIOESPACIAL — {localizacao}
-[texto aqui]
-"""
-    config = types.GenerateContentConfig(max_output_tokens=512, temperature=0.4)
-    try:
-        resp = client.models.generate_content(model="gemini-2.5-flash-lite-preview-06-17",
-                                               contents=prompt_ctx, config=config)
-        bloco = resp.text.strip()
-    except Exception:
-        bloco = f"CONTEXTO SOCIOESPACIAL — {localizacao}\n(Dados não disponíveis.)"
-    st.session_state.contexto_local_cache[chave] = bloco
-    return bloco
-
-def _bloco_instrucao_local(localizacao: str) -> str:
-    if not localizacao or not localizacao.strip(): return ""
-    loc = localizacao.strip()
-    return (f"CONTEXTUALIZAÇÃO SOCIOESPACIAL OBRIGATÓRIA — {loc}:\n"
-            f"- Use a realidade concreta de {loc} como prática social inicial.\n"
-            f"- Incorpore dados socioeconômicos, tecnológicos e históricos locais.\n"
-            f"- Articule escalas local, regional e nacional.\n")
-
-def gerar_conteudo_phc(client, disciplina, ano_escolar, assunto,
-                        nivel_dificuldade="Intermediário", codigo_bncc="", localizacao="") -> str:
-    bloco_ctx = _construir_bloco_localizacao(client, localizacao) if localizacao.strip() else ""
-    instrucao_local = _bloco_instrucao_local(localizacao)
-    prompt = f"""
-Você é um professor especialista em Didática sob o referencial da
-PEDAGOGIA HISTÓRICO-CRÍTICA e da TEORIA GRAMSCIANA DA HEGEMONIA.
-
-Elabore material de aula completo para:
-- Disciplina: {disciplina} | Ano: {ano_escolar} | Assunto: {assunto}
-{f"- BNCC: {codigo_bncc}" if codigo_bncc else ""}
-- Nível: {nivel_dificuldade}
-  {"(abaixo do básico — escola pública interior RJ, salas lotadas, dificuldades diversas)" if nivel_dificuldade == "Prefeitura Municipal de Casimiro de Abreu" else ""}
-{f"- Local: {localizacao}" if localizacao.strip() else ""}
-{ORIENTACAO_PHC}
-{instrucao_local}
-{bloco_ctx}
-
-Estrutura OBRIGATÓRIA:
-# 1. PRÁTICA SOCIAL E GÊNESE HISTÓRICA DO CONTEÚDO
-# 2. EXERCÍCIOS DE FIXAÇÃO E DOMÍNIO CONCEITUAL
-# 3. DESAFIOS DE LEITURA CRÍTICA E CONTRA-HEGEMONIA
-# 4. GABARITO COMENTADO E PEDAGÓGICO
-{REGRAS_FORMATACAO}
-"""
-    config = types.GenerateContentConfig(max_output_tokens=8192, temperature=0.7)
-    resp = client.models.generate_content(model="gemini-2.5-flash-lite-preview-06-17",
-                                           contents=prompt, config=config)
-    return resp.text
-
-def _detectar_conteudos(assunto):
-    normalizado = re.sub(r'\s*;\s*', ',', assunto)
-    partes_brutas = [p.strip() for p in normalizado.split(',') if p.strip()]
-    conteudos = []
-    for parte in partes_brutas:
-        ocorrencias = len(re.findall(r'\s+-\s+', parte))
-        if ocorrencias > 1:
-            conteudos.extend([s.strip() for s in re.split(r'\s+-\s+', parte) if s.strip()])
-        else:
-            conteudos.append(parte)
-    return conteudos if conteudos else [assunto.strip()]
-
-def _distribuir_exercicios(conteudos, quantidade):
-    n = len(conteudos); base = quantidade // n; resto = quantidade % n
-    return [(c, base + (1 if i < resto else 0)) for i, c in enumerate(conteudos)]
-
-def gerar_exercicios_phc(client, disciplina, ano_escolar, assunto,
-                          nivel_dificuldade, quantidade, tipos, codigo_bncc="", localizacao="") -> str:
-    bloco_ctx = _construir_bloco_localizacao(client, localizacao) if localizacao.strip() else ""
-    instrucao_local = _bloco_instrucao_local(localizacao)
-    conteudos = _detectar_conteudos(assunto)
-    distribuicao = _distribuir_exercicios(conteudos, quantidade)
-    multiplos = len(conteudos) > 1
-    if multiplos:
-        linhas_dist = "\n".join(f"    - {n}: {q} exercício{'s' if q!=1 else ''}" for n,q in distribuicao)
-        instrucao_conteudos = f"\n    CONTEÚDOS ({len(conteudos)}):\n{linhas_dist}\n    Total: {quantidade} exercícios.\n"
-        titulo_lista = f"{disciplina} | {ano_escolar} | Conteúdos Diversos"
-    else:
-        instrucao_conteudos = f"\n    CONTEÚDO: {assunto} | QUANTIDADE: {quantidade} exercícios.\n"
-        titulo_lista = f"{disciplina} | {ano_escolar} | {assunto}"
+def gerar_exercicios(client, disciplina, ano, assunto, nivel, quantidade, tipos):
     mapa_tipos = {
         "Dissertativos / resolução passo a passo": "dissertativos (resolução passo a passo)",
         "Múltipla escolha": "múltipla escolha (4 alternativas, A a D)",
@@ -895,50 +751,34 @@ def gerar_exercicios_phc(client, disciplina, ano_escolar, assunto,
     }
     tipos_str = ", ".join(mapa_tipos[t] for t in tipos if t in mapa_tipos) or "variados"
     prompt = f"""
-Você é um professor especialista em Didática sob o referencial da
-PEDAGOGIA HISTÓRICO-CRÍTICA e da TEORIA GRAMSCIANA DA HEGEMONIA.
+Você é professor especialista em elaborar listas de exercícios para o 9º ano.
 
-Elabore lista de exercícios para:
-- Disciplina: {disciplina} | Ano: {ano_escolar}
-{f"- BNCC: {codigo_bncc}" if codigo_bncc else ""}
-- Nível: {nivel_dificuldade}
-{f"- Local: {localizacao}" if localizacao.strip() else ""}
-{instrucao_conteudos}
-{instrucao_local}
-{bloco_ctx}
-TIPOS: {tipos_str}
+Disciplina: {disciplina} | Ano: {ano} | Assunto: {assunto}
+Nível: {nivel} | Quantidade: {quantidade} | Tipos: {tipos_str}
 
-Estrutura OBRIGATÓRIA:
 # LISTA DE EXERCÍCIOS
-## {titulo_lista}
-
-[Exercícios 1 a {quantidade}. Use "**Exercício N.**" como marcador.]
+## {disciplina} | {ano} | {assunto}
+[Exercícios 1 a {quantidade}, marcador: **Exercício N.**]
 
 # GABARITO COMENTADO
 **Exercício N.**
 - **Resposta:** [resposta]
 - **Resolução:** [passo a passo]
-- **Comentário pedagógico:** [reflexão crítica]
+- **Comentário:** [dica pedagógica]
 
-{REGRAS_FORMATACAO}
+{REGRAS_LATEX}
 """
-    config = types.GenerateContentConfig(max_output_tokens=8192, temperature=0.7)
-    resp = client.models.generate_content(model="gemini-2.5-flash-lite-preview-06-17",
-                                           contents=prompt, config=config)
-    return resp.text
+    return _gerar(client, prompt)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SESSION STATE
 # ══════════════════════════════════════════════════════════════════════════════
 for _k, _v in [
-    ("conteudo_md", None), ("ultima_disciplina", ""), ("ultimo_ano", ""),
-    ("ultimo_assunto", ""), ("ultimo_nivel", ""),
-    ("exercicios_md", None), ("ex_disciplina", ""), ("ex_ano", ""),
-    ("ex_assunto", ""), ("ex_nivel", ""),
-    ("questoes_prova_md", None), ("qp_prova", ""), ("qp_disciplina", ""),
-    ("qp_conteudo", ""), ("simulado_md", None), ("sim_tipo", ""),
-    ("aula_aluno_md", None), ("localizacao", ""), ("contexto_local_cache", {}),
+    ("questoes_md", None), ("qp_prova", ""), ("qp_disc", ""), ("qp_cont", ""),
+    ("simulado_md", None), ("sim_tipo", ""),
+    ("aula_md", None), ("dv_disc", ""), ("dv_assunto", ""),
+    ("exercicios_md", None), ("ex_disc", ""), ("ex_ano", ""), ("ex_assunto", ""),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -961,17 +801,6 @@ with st.sidebar:
         Matemática, Políticas Públicas, Educação Ambiental e Esquemas Colaborativos na Educação.
         </div>""", unsafe_allow_html=True)
     st.divider()
-    st.markdown("### 📍 Contextualização Local (opcional)")
-    localizacao_input = st.text_input("Município / Estado", value=st.session_state.localizacao,
-                                       placeholder="Ex: Casimiro de Abreu, RJ",
-                                       key="sidebar_localizacao", label_visibility="collapsed")
-    if localizacao_input != st.session_state.localizacao:
-        st.session_state.localizacao = localizacao_input
-    if st.session_state.localizacao.strip():
-        st.success(f"📌 Local ativo: **{st.session_state.localizacao}**")
-    else:
-        st.caption("🔘 Sem contextualização local — modo padrão ativo.")
-    st.divider()
     st.markdown("### 📞 Contato & Suporte")
     st.markdown("📧 **E-mail:** [ericmatsouza@gmail.com](mailto:ericmatsouza@gmail.com)")
     st.markdown("💬 **WhatsApp:** [(21) 97048-1891](https://wa.me/5521970481891)")
@@ -987,10 +816,9 @@ st.markdown("**Prof. Me. Eric Souza da Silva**")
 st.markdown("""
 <div style="background:rgba(128,128,128,0.12);padding:15px;border-radius:10px;
 text-align:justify;line-height:1.6;margin:10px 0 15px 0;">
-Plataforma de preparação para as provas de ingresso no Ensino Médio Técnico das escolas
-federais e estaduais: <strong>IFF, IFRJ, CEFET-RJ e SESI-SENAI</strong>. Material elaborado
-com base na <strong>Pedagogia Histórico-Crítica (PHC)</strong>, articulando rigor
-acadêmico à realidade dos estudantes da rede pública.
+Plataforma de preparação para as provas de ingresso no Ensino Médio Técnico:
+<strong>IFF, IFRJ, CEFET-RJ e SESI-SENAI</strong>.
+Questões, simulados e aulas no estilo das provas reais, para alunos do 9º ano da rede pública.
 </div>""", unsafe_allow_html=True)
 
 # API KEY
@@ -998,435 +826,306 @@ api_key = os.getenv("GEMINI_API_KEY", "")
 if not api_key:
     api_key = st.text_input("🔑 Chave API Gemini:", type="password")
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ABAS
 # ══════════════════════════════════════════════════════════════════════════════
-aba_prova, aba_simulado, aba_duvidas, aba_aula, aba_exercicios = st.tabs([
+aba_prova, aba_simulado, aba_duvidas, aba_exercicios = st.tabs([
     "📝 Questões por Prova",
     "🏆 Simulados",
     "🙋 Tirar Dúvidas",
-    "📖 Plano de Aula",
     "✏️ Lista de Exercícios",
 ])
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# ABA 1: QUESTÕES POR PROVA
+# ABA 1 — QUESTÕES POR PROVA
 # ════════════════════════════════════════════════════════════════════════════════
 with aba_prova:
     st.markdown("#### Questões no Estilo das Provas de Ingresso")
-    st.markdown("Escolha a escola, a disciplina, o conteúdo e gere questões no padrão oficial.")
+    st.caption("Escolha a escola, a disciplina, o conteúdo e gere questões no padrão oficial.")
 
-    # Seleção da prova
-    prova_opcoes = list(PROVAS.keys())
-    prova_sel = st.selectbox("🏛️ Escola / Prova", prova_opcoes, key="qp_prova_sel")
+    prova_sel = st.selectbox("🏛️ Escola / Prova", list(PROVAS.keys()), key="qp_prova_sel")
     prova_info = PROVAS[prova_sel]
 
-    # Seleção da disciplina
     disc_opcoes = list(prova_info["disciplinas"].keys())
     disc_sel = st.selectbox("📚 Disciplina", disc_opcoes, key="qp_disc_sel")
 
-    # Conteúdos disponíveis
     conteudos_disp = prova_info["disciplinas"][disc_sel]
-    conts_sel = st.multiselect(
-        "📌 Conteúdo(s)",
-        conteudos_disp,
-        default=[conteudos_disp[0]],
-        key="qp_cont_sel",
-        help="Selecione um ou mais conteúdos. Os exercícios serão distribuídos proporcionalmente."
-    )
+    conts_sel = st.multiselect("📌 Conteúdo(s)", conteudos_disp,
+                                default=[conteudos_disp[0]], key="qp_cont_sel",
+                                help="Selecione um ou mais conteúdos.")
 
-    col_qtd, col_tipo = st.columns(2)
-    with col_qtd:
-        qp_quantidade = st.slider("Nº de Questões", 5, 30, 10, step=1, key="qp_qtd")
-    with col_tipo:
-        qp_tipo = st.selectbox(
-            "Tipo de Questão",
-            ["Múltipla escolha (A–D)", "Dissertativa", "Misto (múltipla + dissertativa)"],
-            key="qp_tipo_sel"
-        )
+    col1, col2 = st.columns(2)
+    with col1:
+        qp_qtd = st.slider("Nº de Questões", 5, 30, 10, key="qp_qtd")
+    with col2:
+        qp_tipo = st.selectbox("Tipo", ["Múltipla escolha (A–D)", "Dissertativa",
+                                         "Misto (múltipla + dissertativa)"], key="qp_tipo")
 
-    if conts_sel:
-        st.markdown(f"**Conteúdos selecionados:** {' · '.join(conts_sel)}")
-
-    if st.button("✨ Gerar Questões", key="btn_gerar_prova"):
+    if st.button("✨ Gerar Questões", key="btn_qp"):
         if not api_key:
             st.warning("Informe a chave API Gemini.")
         elif not conts_sel:
             st.warning("Selecione ao menos um conteúdo.")
         else:
-            conteudo_str = ", ".join(conts_sel)
             try:
-                with st.spinner(f"🧠 Gerando {qp_quantidade} questões estilo {prova_sel}..."):
-                    client = get_gemini_client(api_key)
-                    st.session_state.questoes_prova_md = gerar_questoes_prova(
-                        client, prova_sel, disc_sel, conteudo_str, qp_quantidade, qp_tipo
-                    )
+                with st.spinner(f"Gerando {qp_qtd} questões estilo {prova_sel}..."):
+                    client = get_client(api_key)
+                    cont_str = ", ".join(conts_sel)
+                    st.session_state.questoes_md = gerar_questoes_prova(
+                        client, prova_sel, disc_sel, cont_str, qp_qtd, qp_tipo)
                     st.session_state.qp_prova = prova_sel
-                    st.session_state.qp_disciplina = disc_sel
-                    st.session_state.qp_conteudo = conteudo_str
+                    st.session_state.qp_disc = disc_sel
+                    st.session_state.qp_cont = cont_str
                 st.success("✅ Questões geradas!")
             except (APIError, Exception) as e:
-                _tratar_erro_api(e)
+                _tratar_erro(e)
 
-    if st.session_state.questoes_prova_md:
+    if st.session_state.questoes_md:
         st.divider()
-        with st.expander("📄 Visualizar questões", expanded=True):
-            st.markdown(st.session_state.questoes_prova_md)
+        with st.expander("📄 Visualizar", expanded=True):
+            st.markdown(st.session_state.questoes_md)
         st.divider()
-
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            if st.button("🖨️ PDF Questões (aluno)", key="btn_pdf_qp"):
-                with st.spinner("⚙️ Gerando PDF..."):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("🖨️ PDF Aluno (sem gabarito)", key="btn_pdf_qp_aluno"):
+                with st.spinner("Gerando PDF..."):
                     try:
-                        # Extrai só as questões (sem gabarito)
-                        sep = re.split(r'(?mi)^#{1,2}\s+.*GABARITO.*$', st.session_state.questoes_prova_md)
-                        conteudo_aluno = sep[0].strip()
-                        pdf_b = compilar_pdf_questoes_prova(
-                            conteudo_aluno, st.session_state.qp_prova,
-                            st.session_state.qp_disciplina, st.session_state.qp_conteudo
-                        )
-                        st.download_button("⬇️ Baixar PDF Questões", pdf_b,
-                                           f"Questoes_{st.session_state.qp_prova[:10]}_{st.session_state.qp_disciplina}.pdf",
+                        sep = re.split(r'(?mi)^#{1,2}\s+.*GABARITO.*$', st.session_state.questoes_md)
+                        pdf = compilar_pdf_questoes(sep[0].strip(), st.session_state.qp_prova,
+                                                    st.session_state.qp_disc, st.session_state.qp_cont)
+                        st.download_button("⬇️ Baixar PDF Questões", pdf,
+                                           f"Questoes_{st.session_state.qp_prova[:10]}_{st.session_state.qp_disc}.pdf",
                                            "application/pdf", key="dl_qp_aluno")
                     except Exception as e:
                         st.error(f"❌ {e}")
-        with col_p2:
-            if st.button("🖨️ PDF Gabarito (professor)", key="btn_pdf_qp_gab"):
-                with st.spinner("⚙️ Gerando PDF gabarito..."):
+        with col_b:
+            if st.button("🖨️ PDF Professor (com gabarito)", key="btn_pdf_qp_prof"):
+                with st.spinner("Gerando PDF..."):
                     try:
-                        pdf_b = compilar_pdf_questoes_prova(
-                            st.session_state.questoes_prova_md, st.session_state.qp_prova,
-                            st.session_state.qp_disciplina, st.session_state.qp_conteudo
-                        )
-                        st.download_button("⬇️ Baixar Gabarito PDF", pdf_b,
-                                           f"Gabarito_{st.session_state.qp_prova[:10]}_{st.session_state.qp_disciplina}.pdf",
-                                           "application/pdf", key="dl_qp_gab")
+                        pdf = compilar_pdf_questoes(st.session_state.questoes_md,
+                                                    st.session_state.qp_prova,
+                                                    st.session_state.qp_disc,
+                                                    st.session_state.qp_cont)
+                        st.download_button("⬇️ Baixar Gabarito PDF", pdf,
+                                           f"Gabarito_{st.session_state.qp_prova[:10]}_{st.session_state.qp_disc}.pdf",
+                                           "application/pdf", key="dl_qp_prof")
                     except Exception as e:
                         st.error(f"❌ {e}")
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# ABA 2: SIMULADOS
+# ABA 2 — SIMULADOS
 # ════════════════════════════════════════════════════════════════════════════════
 with aba_simulado:
     st.markdown("#### 🏆 Simulado Completo — Estilo Prova Real")
-    st.markdown("""
-    O simulado mistura questões de **Português (10)**, **Matemática (10)** e
-    **Ciências, História e Geografia (5 cada)** de forma aleatória, como nas provas reais.
-    """)
+    st.markdown("10 questões de Português + 10 de Matemática + 5 de Ciências, História e Geografia, como nas provas reais.")
 
     tipo_sim = st.selectbox("🎯 Modelo de Simulado", list(TIPOS_SIMULADO.keys()), key="sim_tipo_sel")
-    distrib_base = TIPOS_SIMULADO[tipo_sim]
+    distrib = TIPOS_SIMULADO[tipo_sim]
+    total_sim = sum(distrib.values())
 
-    # Mapeamento interno
-    mapa_materias = {
-        "port": "Português",
-        "mat": "Matemática",
-        "cie": "Ciências",
-        "geo": "Geografia",
-        "hist": "História",
-    }
-    distrib_real = {mapa_materias[k]: v for k, v in distrib_base.items()}
-    total_sim = sum(distrib_real.values())
-
-    st.markdown(f"**Distribuição:** {' | '.join(f'{m}: {q}q' for m, q in distrib_real.items())} = **{total_sim} questões**")
+    st.markdown(f"**Distribuição:** {' | '.join(f'{m}: {q}q' for m, q in distrib.items())} = **{total_sim} questões**")
     st.divider()
 
-    st.markdown("##### 🎲 Personalize os conteúdos por disciplina (opcional)")
-    st.caption("Se não selecionar, os conteúdos serão sorteados automaticamente.")
+    st.markdown("##### 🎲 Personalize os conteúdos (opcional)")
+    st.caption("Se não selecionar, os conteúdos são sorteados automaticamente.")
 
-    conteudos_escolhidos = {}
-    for materia, qtd in distrib_real.items():
+    conteudos_sim = {}
+    for mat, qtd in distrib.items():
         if qtd == 0:
             continue
-        with st.expander(f"📚 {materia} ({qtd} questões)", expanded=False):
-            opts = CONTEUDOS_SIMULADO.get(materia, [])
+        with st.expander(f"📚 {mat} ({qtd} questões)", expanded=False):
+            opts = CONTEUDOS_SIMULADO.get(mat, [])
             if opts:
-                # sorteia padrão aleatório
-                padrao_random = random.sample(opts, min(2, len(opts)))
-                selecionados = st.multiselect(
-                    f"Conteúdos de {materia}",
-                    opts,
-                    default=padrao_random,
-                    key=f"sim_cont_{materia}",
-                    help="Deixe vazio para seleção automática."
-                )
-                conteudos_escolhidos[materia] = selecionados
-            else:
-                st.caption(f"Conteúdos variados do 9º ano para {materia}.")
+                padrao = random.sample(opts, min(2, len(opts)))
+                sel = st.multiselect(f"Conteúdos de {mat}", opts, default=padrao,
+                                     key=f"sim_cont_{mat}")
+                conteudos_sim[mat] = sel
 
     st.divider()
-    if st.button("🚀 Gerar Simulado Completo", key="btn_gerar_simulado"):
+    if st.button("🚀 Gerar Simulado Completo", key="btn_sim"):
         if not api_key:
             st.warning("Informe a chave API Gemini.")
         else:
             try:
-                with st.spinner(f"🧠 Gerando simulado com {total_sim} questões — pode levar até 1 minuto..."):
-                    client = get_gemini_client(api_key)
+                with st.spinner(f"Gerando simulado com {total_sim} questões — pode levar até 1 minuto..."):
+                    client = get_client(api_key)
                     st.session_state.simulado_md = gerar_simulado(
-                        client, tipo_sim, distrib_real, conteudos_escolhidos
-                    )
+                        client, tipo_sim, distrib, conteudos_sim)
                     st.session_state.sim_tipo = tipo_sim
-                st.success(f"✅ Simulado gerado! {total_sim} questões prontas.")
+                st.success(f"✅ Simulado com {total_sim} questões pronto!")
             except (APIError, Exception) as e:
-                _tratar_erro_api(e)
+                _tratar_erro(e)
 
     if st.session_state.simulado_md:
         st.divider()
         with st.expander("📄 Visualizar Simulado", expanded=True):
             st.markdown(st.session_state.simulado_md)
         st.divider()
-
         col_s1, col_s2 = st.columns(2)
         with col_s1:
-            if st.button("🖨️ PDF Simulado (aluno)", key="btn_pdf_sim"):
-                with st.spinner("⚙️ Gerando PDF..."):
+            if st.button("🖨️ PDF Aluno (sem gabarito)", key="btn_pdf_sim_aluno"):
+                with st.spinner("Gerando PDF..."):
                     try:
                         sep = re.split(r'(?mi)^#{1,2}\s+.*GABARITO.*$', st.session_state.simulado_md)
-                        conteudo_aluno = sep[0].strip()
-                        pdf_b = compilar_pdf_simulado(conteudo_aluno, st.session_state.sim_tipo)
-                        st.download_button("⬇️ Baixar Simulado PDF", pdf_b,
-                                           f"Simulado_{st.session_state.sim_tipo[:20].replace(' ', '_')}.pdf",
+                        pdf = compilar_pdf_simulado(sep[0].strip(), st.session_state.sim_tipo)
+                        st.download_button("⬇️ Baixar Simulado PDF", pdf,
+                                           f"Simulado_{st.session_state.sim_tipo[:20].replace(' ','_')}.pdf",
                                            "application/pdf", key="dl_sim_aluno")
                     except Exception as e:
                         st.error(f"❌ {e}")
         with col_s2:
             if st.button("🖨️ PDF Gabarito Simulado", key="btn_pdf_sim_gab"):
-                with st.spinner("⚙️ Gerando PDF gabarito..."):
+                with st.spinner("Gerando PDF..."):
                     try:
-                        pdf_b = compilar_pdf_simulado(st.session_state.simulado_md, st.session_state.sim_tipo)
-                        st.download_button("⬇️ Baixar Gabarito PDF", pdf_b,
-                                           f"Gabarito_Simulado_{st.session_state.sim_tipo[:15].replace(' ', '_')}.pdf",
+                        pdf = compilar_pdf_simulado(st.session_state.simulado_md,
+                                                    st.session_state.sim_tipo)
+                        st.download_button("⬇️ Baixar Gabarito PDF", pdf,
+                                           f"Gabarito_Simulado_{st.session_state.sim_tipo[:15].replace(' ','_')}.pdf",
                                            "application/pdf", key="dl_sim_gab")
                     except Exception as e:
                         st.error(f"❌ {e}")
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# ABA 3: TIRAR DÚVIDAS
+# ABA 3 — TIRAR DÚVIDAS
 # ════════════════════════════════════════════════════════════════════════════════
 with aba_duvidas:
     st.markdown("#### 🙋 Tirar Dúvidas — Aula Personalizada para Você")
-    st.markdown("""
-    Escolha a matéria e o assunto e receba uma **aula completa** explicada em linguagem
-    de 9º ano, com exemplos do dia a dia, passo a passo e dicas para a prova!
-    """)
+    st.markdown("Escolha a matéria e o assunto e receba uma aula completa em linguagem de 9º ano, com exemplos, passo a passo e dicas de prova!")
 
-    # Disciplina livre ou por lista
+    disc_lista = [
+        "Matemática", "Português", "Ciências", "Física", "Química", "Biologia",
+        "História", "Geografia", "Inglês", "Artes", "Educação Física (teoria)",
+        "Outra (digitar abaixo)",
+    ]
     col_d1, col_d2 = st.columns([1, 2])
     with col_d1:
-        disc_lista = [
-            "Matemática", "Português", "Ciências", "Física", "Química", "Biologia",
-            "História", "Geografia", "Inglês", "Artes", "Educação Física (teoria)",
-            "Outra (digitar abaixo)"
-        ]
         disc_escolha = st.selectbox("📚 Disciplina", disc_lista, key="dv_disc_lista")
     with col_d2:
         if disc_escolha == "Outra (digitar abaixo)":
             disc_duvida = st.text_input("Digite a disciplina", placeholder="Ex: Filosofia", key="dv_disc_texto")
         else:
             disc_duvida = disc_escolha
-            st.text_input("Disciplina selecionada", value=disc_duvida, disabled=True, key="dv_disc_fix")
+            st.text_input("Disciplina", value=disc_duvida, disabled=True, key="dv_disc_fix")
 
-    assunto_duvida = st.text_input(
-        "📌 Assunto / Tema",
-        placeholder="Ex: Equação do 2º grau, Fotossíntese, Revolução Francesa...",
-        key="dv_assunto"
-    )
+    assunto_duvida = st.text_input("📌 Assunto / Tema",
+                                    placeholder="Ex: Equação do 2º grau, Fotossíntese, Revolução Francesa...",
+                                    key="dv_assunto_field")
+    duvida_esp = st.text_area("❓ Qual é a sua dúvida? (opcional)",
+                               placeholder="Ex: Não entendo como usar a fórmula de Bhaskara.",
+                               height=90, key="dv_duvida_field")
 
-    duvida_especifica = st.text_area(
-        "❓ Qual é a sua dúvida? (opcional — deixe em branco para aula completa)",
-        placeholder="Ex: Não entendo como usar a fórmula de Bhaskara. O que é discriminante?",
-        height=100,
-        key="dv_duvida"
-    )
+    st.info("💡 Quanto mais específica a dúvida, mais direcionada será a explicação!")
 
-    st.info("💡 **Dica:** Quanto mais específica for a sua dúvida, mais direcionada será a explicação!")
-
-    if st.button("🎓 Quero Aprender!", key="btn_gerar_duvida"):
+    if st.button("🎓 Quero Aprender!", key="btn_duvida"):
         if not api_key:
             st.warning("Informe a chave API Gemini.")
         elif not assunto_duvida.strip():
-            st.warning("Informe o assunto/tema que quer estudar.")
+            st.warning("Informe o assunto que quer estudar.")
         elif not disc_duvida.strip():
             st.warning("Informe a disciplina.")
         else:
             try:
-                with st.spinner("🧠 Preparando sua aula personalizada..."):
-                    client = get_gemini_client(api_key)
-                    st.session_state.aula_aluno_md = gerar_aula_aluno(
-                        client, disc_duvida, assunto_duvida, duvida_especifica
-                    )
-                st.success("✅ Aula pronta! Role para baixo para ler.")
+                with st.spinner("Preparando sua aula personalizada..."):
+                    client = get_client(api_key)
+                    st.session_state.aula_md = gerar_aula_aluno(
+                        client, disc_duvida, assunto_duvida, duvida_esp)
+                    st.session_state.dv_disc = disc_duvida
+                    st.session_state.dv_assunto = assunto_duvida
+                st.success("✅ Aula pronta!")
             except (APIError, Exception) as e:
-                _tratar_erro_api(e)
+                _tratar_erro(e)
 
-    if st.session_state.aula_aluno_md:
+    if st.session_state.aula_md:
         st.divider()
         with st.expander("📖 Sua Aula", expanded=True):
-            st.markdown(st.session_state.aula_aluno_md)
+            st.markdown(st.session_state.aula_md)
         st.divider()
-
         if st.button("🖨️ Gerar PDF da Aula", key="btn_pdf_duvida"):
-            with st.spinner("⚙️ Gerando PDF..."):
+            with st.spinner("Gerando PDF..."):
                 try:
-                    pdf_b = _compilar_pdf_generico(
-                        st.session_state.aula_aluno_md,
-                        "AULA PERSONALIZADA — 9º ANO",
-                        f"{disc_duvida.upper()} | {assunto_duvida}",
-                        marcador_nova_pagina=""
-                    )
-                    st.download_button("⬇️ Baixar Aula PDF", pdf_b,
-                                       f"Aula_{assunto_duvida.replace(' ', '_')[:30]}.pdf",
+                    pdf = compilar_pdf_aula(st.session_state.aula_md,
+                                            st.session_state.dv_disc,
+                                            st.session_state.dv_assunto)
+                    st.download_button("⬇️ Baixar Aula PDF", pdf,
+                                       f"Aula_{st.session_state.dv_assunto.replace(' ','_')[:30]}.pdf",
                                        "application/pdf", key="dl_pdf_duvida")
                 except Exception as e:
                     st.error(f"❌ {e}")
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# ABA 4: PLANO DE AULA (original intacto)
-# ════════════════════════════════════════════════════════════════════════════════
-with aba_aula:
-    if st.session_state.localizacao.strip():
-        st.info(f"📍 **Contextualização local ativa:** {st.session_state.localizacao}")
-
-    col_disc, col_ano = st.columns(2)
-    with col_disc:
-        disciplina = st.text_input("Disciplina", placeholder="Ex: Matemática", key="aula_disc")
-    with col_ano:
-        ano_escolar = st.text_input("Ano / Série", placeholder="Ex: 9º ano", key="aula_ano")
-
-    assunto = st.text_input("Assunto", placeholder="Ex: Potenciação", key="aula_assunto")
-    codigo_bncc = st.text_input("🎯 BNCC (opcional)", key="aula_bncc")
-    nivel_dificuldade = st.selectbox(
-        "Nível de Dificuldade",
-        ["Básico", "Intermediário", "Avançado", "Prefeitura Municipal de Casimiro de Abreu"],
-        key="aula_nivel",
-    )
-
-    if st.button("✨ Gerar Material Didático", key="btn_gerar_aula"):
-        if not api_key or not disciplina or not ano_escolar or not assunto:
-            st.warning("Preencha todos os campos obrigatórios.")
-        else:
-            try:
-                with st.spinner("🧠 Elaborando material..."):
-                    client = get_gemini_client(api_key)
-                    st.session_state.conteudo_md = gerar_conteudo_phc(
-                        client, disciplina, ano_escolar, assunto, nivel_dificuldade,
-                        codigo_bncc, st.session_state.localizacao
-                    )
-                st.session_state.ultima_disciplina = disciplina
-                st.session_state.ultimo_ano = ano_escolar
-                st.session_state.ultimo_assunto = assunto
-                st.session_state.ultimo_nivel = nivel_dificuldade
-                st.success("✅ Material gerado com sucesso!")
-            except (APIError, Exception) as e:
-                _tratar_erro_api(e)
-
-    if st.session_state.conteudo_md:
-        st.divider()
-        with st.expander("📄 Visualizar texto gerado", expanded=True):
-            st.markdown(st.session_state.conteudo_md)
-        st.divider()
-        if st.button("🖨️ Gerar PDF", key="btn_pdf_aula"):
-            with st.spinner("⚙️ Renderizando expressões matemáticas..."):
-                try:
-                    pdf_bytes = compilar_pdf(st.session_state.conteudo_md,
-                                              st.session_state.ultima_disciplina,
-                                              st.session_state.ultimo_ano,
-                                              st.session_state.ultimo_assunto)
-                    st.download_button("⬇️ Baixar PDF", pdf_bytes,
-                                       f"Aula_{st.session_state.ultimo_assunto.replace(' ', '_')}.pdf",
-                                       "application/pdf", key="dl_pdf_aula")
-                except Exception as e:
-                    st.error(f"❌ Erro ao gerar PDF: {e}")
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-# ABA 5: LISTA DE EXERCÍCIOS (original intacto)
+# ABA 4 — LISTA DE EXERCÍCIOS
 # ════════════════════════════════════════════════════════════════════════════════
 with aba_exercicios:
-    st.markdown("#### Configure a lista de exercícios")
-    if st.session_state.localizacao.strip():
-        st.info(f"📍 **Contextualização local ativa:** {st.session_state.localizacao}")
+    st.markdown("#### ✏️ Lista de Exercícios")
 
-    col_disc2, col_ano2 = st.columns(2)
-    with col_disc2:
-        ex_disciplina = st.text_input("Disciplina", placeholder="Ex: Matemática", key="ex_disc")
-    with col_ano2:
+    col_e1, col_e2 = st.columns(2)
+    with col_e1:
+        ex_disc = st.text_input("Disciplina", placeholder="Ex: Matemática", key="ex_disc_field")
+    with col_e2:
         ex_ano = st.text_input("Ano / Série", placeholder="Ex: 9º ano", key="ex_ano_field")
 
     ex_assunto = st.text_input("Assunto", placeholder="Ex: Potenciação", key="ex_assunto_field")
-    ex_bncc = st.text_input("🎯 BNCC (opcional)", key="ex_bncc")
-    ex_nivel = st.selectbox(
-        "Nível de Dificuldade",
-        ["Básico", "Intermediário", "Avançado", "Prefeitura Municipal de Casimiro de Abreu"],
-        key="ex_nivel_field",
-    )
-    ex_quantidade = st.slider("Quantidade de exercícios", 5, 20, 10, step=1, key="ex_quantidade")
-    ex_tipos = st.multiselect(
-        "Tipos de exercício",
-        ["Dissertativos / resolução passo a passo", "Múltipla escolha", "Verdadeiro ou Falso"],
-        default=["Dissertativos / resolução passo a passo", "Múltipla escolha"],
-        key="ex_tipos",
-    )
+    ex_nivel = st.selectbox("Nível", ["Básico", "Intermediário", "Avançado"], key="ex_nivel_field")
+    ex_qtd = st.slider("Quantidade de exercícios", 5, 20, 10, key="ex_qtd")
+    ex_tipos = st.multiselect("Tipos de exercício",
+                               ["Dissertativos / resolução passo a passo", "Múltipla escolha", "Verdadeiro ou Falso"],
+                               default=["Dissertativos / resolução passo a passo", "Múltipla escolha"],
+                               key="ex_tipos_field")
 
-    if st.button("✨ Gerar Lista de Exercícios", key="btn_gerar_ex"):
-        if not api_key or not ex_disciplina or not ex_ano or not ex_assunto:
+    if st.button("✨ Gerar Lista de Exercícios", key="btn_ex"):
+        if not api_key or not ex_disc or not ex_ano or not ex_assunto:
             st.warning("Preencha todos os campos obrigatórios.")
         elif not ex_tipos:
             st.warning("Selecione ao menos um tipo de exercício.")
         else:
             try:
-                with st.spinner(f"🧠 Gerando {ex_quantidade} exercícios..."):
-                    client = get_gemini_client(api_key)
-                    st.session_state.exercicios_md = gerar_exercicios_phc(
-                        client, ex_disciplina, ex_ano, ex_assunto, ex_nivel,
-                        ex_quantidade, ex_tipos, ex_bncc, st.session_state.localizacao
-                    )
-                st.session_state.ex_disciplina = ex_disciplina
-                st.session_state.ex_ano = ex_ano
-                st.session_state.ex_assunto = ex_assunto
-                st.session_state.ex_nivel = ex_nivel
-                st.success("✅ Lista gerada com sucesso!")
+                with st.spinner(f"Gerando {ex_qtd} exercícios..."):
+                    client = get_client(api_key)
+                    st.session_state.exercicios_md = gerar_exercicios(
+                        client, ex_disc, ex_ano, ex_assunto, ex_nivel, ex_qtd, ex_tipos)
+                    st.session_state.ex_disc = ex_disc
+                    st.session_state.ex_ano = ex_ano
+                    st.session_state.ex_assunto = ex_assunto
+                st.success("✅ Lista gerada!")
             except (APIError, Exception) as e:
-                _tratar_erro_api(e)
+                _tratar_erro(e)
 
     if st.session_state.exercicios_md:
         st.divider()
-        with st.expander("📄 Visualizar exercícios gerados", expanded=True):
+        with st.expander("📄 Visualizar exercícios", expanded=True):
             st.markdown(st.session_state.exercicios_md)
         st.divider()
-        st.markdown("##### Gerar PDFs")
-        col_pdf1, col_pdf2 = st.columns(2)
-        with col_pdf1:
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
             if st.button("🖨️ PDF Exercícios (aluno)", key="btn_pdf_ex"):
-                with st.spinner("⚙️ Renderizando PDF..."):
+                with st.spinner("Gerando PDF..."):
                     try:
-                        pdf_ex = compilar_pdf_exercicios(st.session_state.exercicios_md,
-                                                          st.session_state.ex_disciplina,
-                                                          st.session_state.ex_ano,
-                                                          st.session_state.ex_assunto)
-                        st.download_button("⬇️ Baixar Exercícios (PDF)", pdf_ex,
-                                           f"Exercicios_{st.session_state.ex_assunto.replace(' ', '_')}.pdf",
-                                           "application/pdf", key="dl_pdf_ex")
+                        pdf = compilar_pdf_exercicios(st.session_state.exercicios_md,
+                                                       st.session_state.ex_disc,
+                                                       st.session_state.ex_assunto)
+                        st.download_button("⬇️ Baixar Exercícios PDF", pdf,
+                                           f"Exercicios_{st.session_state.ex_assunto.replace(' ','_')}.pdf",
+                                           "application/pdf", key="dl_ex_aluno")
                     except Exception as e:
                         st.error(f"❌ {e}")
-        with col_pdf2:
+        with col_p2:
             if st.button("🖨️ PDF Gabarito (professor)", key="btn_pdf_gab"):
-                with st.spinner("⚙️ Renderizando PDF gabarito..."):
+                with st.spinner("Gerando PDF..."):
                     try:
-                        pdf_gab = compilar_pdf_gabarito(st.session_state.exercicios_md,
-                                                         st.session_state.ex_disciplina,
-                                                         st.session_state.ex_ano,
-                                                         st.session_state.ex_assunto)
-                        st.download_button("⬇️ Baixar Gabarito (PDF)", pdf_gab,
-                                           f"Gabarito_{st.session_state.ex_assunto.replace(' ', '_')}.pdf",
-                                           "application/pdf", key="dl_pdf_gab")
+                        pdf = compilar_pdf_gabarito(st.session_state.exercicios_md,
+                                                     st.session_state.ex_disc,
+                                                     st.session_state.ex_assunto)
+                        st.download_button("⬇️ Baixar Gabarito PDF", pdf,
+                                           f"Gabarito_{st.session_state.ex_assunto.replace(' ','_')}.pdf",
+                                           "application/pdf", key="dl_ex_gab")
                     except Exception as e:
                         st.error(f"❌ {e}")
+
 
 # ── RODAPÉ ────────────────────────────────────────────────────────────────────
 st.markdown('<div class="footer">© Prof. Eric Souza da Silva | Preparatório Escolas Técnicas RJ</div>',
