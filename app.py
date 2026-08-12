@@ -782,7 +782,7 @@ ESTRUTURA OBRIGATÓRIA:
 {REGRAS_FORMATACAO}
 """
     config = types.GenerateContentConfig(max_output_tokens=8192, temperature=0.65)
-    resp = client.models.generate_content(model="gemini-2.5-flash-lite-preview-06-17",
+    resp = client.models.generate_content(model="gemini-3.5-flash-lite",
                                            contents=prompt, config=config)
     return resp.text
 
