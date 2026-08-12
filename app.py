@@ -641,11 +641,11 @@ FOCO OBRIGATÓRIO — PROVAS DE INGRESSO EM ESCOLAS TÉCNICAS:
 
 def gerar_questoes_prova(client, prova, disciplina, conteudo, quantidade, tipo_questao):
     mapa = {
-        "Múltipla escolha (A–D)": "múltipla escolha com 4 alternativas (A, B, C, D)",
+        "Múltipla escolha (A–E)": "múltipla escolha com 5 alternativas (A, B, C, D, E)",
         "Dissertativa": "dissertativa com resolução passo a passo",
         "Misto (múltipla + dissertativa)": "misto: metade múltipla escolha e metade dissertativa",
     }
-    tipo_str = mapa.get(tipo_questao, "múltipla escolha com 4 alternativas")
+    tipo_str = mapa.get(tipo_questao, "múltipla escolha com 5 alternativas")
     prompt = f"""
 Você é professor especialista em bancas de provas de ingresso em escolas técnicas ({prova}),
 com domínio profundo de como essa banca especificamente cobra cada conteúdo.
@@ -657,7 +657,7 @@ Tipo: {tipo_str}
 
 - Estilo fiel ao modelo {prova}. Nível: ~40% fáceis, 40% médias, 20% difíceis.
 - Indique: [Conteúdo: ...] e nível (Fácil/Médio/Difícil) em cada questão.
-- Múltipla escolha: alternativas A), B), C), D) em linhas separadas, uma correta — incluindo
+- Múltipla escolha: alternativas A), B), C), D), E) em linhas separadas, uma correta — incluindo
   ao menos 1 alternativa "pegadinha" plausível por questão (erro comum do aluno).
 - Use LaTeX para toda matemática.
 
@@ -686,14 +686,14 @@ def gerar_simulado(client, tipo, distribuicao, conteudos_escolhidos):
     prompt = f"""
 Você é professor especialista em simulados para ingresso em escolas técnicas (IFF, IFRJ, CEFET, SESI-SENAI).
 
-Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D) para 9º ano — estilo: **{tipo}**.
+Elabore um simulado com {total} questões de múltipla escolha (A, B, C, D, E) para 9º ano — estilo: **{tipo}**.
 
 DISTRIBUIÇÃO:
 {chr(10).join(secoes)}
 
 - Questões numeradas de 1 a {total} em sequência contínua.
 - Antes de cada questão: **[DISCIPLINA]** e [Conteúdo: ...].
-- Alternativas A), B), C), D) em linhas separadas, uma correta.
+- Alternativas A), B), C), D), E) em linhas separadas, uma correta.
 - Níveis: ~40% fáceis (F), 40% médias (M), 20% difíceis (D).
 - Use LaTeX para matemática.
 - Ao final das questões, inclua folha de respostas vazia.
@@ -760,7 +760,7 @@ Elabore uma AULA EXPLICATIVA COMPLETA, falando diretamente com o aluno:
 def gerar_exercicios(client, disciplina, ano, assunto, nivel, quantidade, tipos):
     mapa_tipos = {
         "Dissertativos / resolução passo a passo": "dissertativos (resolução passo a passo)",
-        "Múltipla escolha": "múltipla escolha (4 alternativas, A a D)",
+        "Múltipla escolha": "múltipla escolha (5 alternativas, A a E)",
         "Verdadeiro ou Falso": "verdadeiro ou falso (com justificativa)",
     }
     tipos_str = ", ".join(mapa_tipos[t] for t in tipos if t in mapa_tipos) or "variados"
@@ -881,7 +881,7 @@ with aba_prova:
     with col1:
         qp_qtd = st.slider("Nº de Questões", 5, 30, 10, key="qp_qtd")
     with col2:
-        qp_tipo = st.selectbox("Tipo", ["Múltipla escolha (A–D)", "Dissertativa",
+        qp_tipo = st.selectbox("Tipo", ["Múltipla escolha (A–E)", "Dissertativa",
                                          "Misto (múltipla + dissertativa)"], key="qp_tipo")
 
     if st.button("✨ Gerar Questões", key="btn_qp"):
